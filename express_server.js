@@ -3,6 +3,7 @@ const app = express();
 const PORT = 8080; // default port 8080
 
 app.set("view engine", "ejs");
+app.use(express.urlencoded({ extended: true}));
 
 const generateRandomString = function() {
   let result = '';
@@ -23,7 +24,7 @@ const urlDatabase = {
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  res.redirect("/urls");
 });
 
 app.listen(PORT, () => {
@@ -34,11 +35,11 @@ app.get("/urls", (req, res) => {
   res.render("urls_index", templateVars);
 });
 
-app.get("/urls.json", (req, res) => {
-  res.json(urlDatabase);
-});
+// app.get("/urls.json", (req, res) => {
+//   res.json(urlDatabase);
+// });
 
-app.get("/urls/new", (req, res) => {
+app.get("/urls/new", (req, res) => { // ADD
   res.render("urls_new");
 });
 
@@ -47,7 +48,7 @@ app.get("/urls/:id", (req, res) => {
   res.render("urls_show", templateVars);
 });
 
-app.post("/urls", (req, res) => {
+app.post("/urls", (req, res) => {// MY URLS MAIN PAGE
   const id = generateRandomString();
   urlDatabase[id] = req.body.longURL;
   console.log(urlDatabase);
@@ -58,4 +59,10 @@ app.get("/u/:id", (req, res) => {
   const longURL = urlDatabase[req.params.id];
   console.log(longURL);
   res.redirect(longURL);
+});
+
+app.post("/urls/:id/delete", (req, res) => { // DELETE
+  const id = req.params.id;
+  delete urlDatabase[id];
+  res.redirect("/urls");
 });
