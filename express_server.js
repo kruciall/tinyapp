@@ -35,10 +35,6 @@ app.get("/urls", (req, res) => {
   res.render("urls_index", templateVars);
 });
 
-// app.get("/urls.json", (req, res) => {
-//   res.json(urlDatabase);
-// });
-
 app.get("/urls/new", (req, res) => { // ADD
   res.render("urls_new");
 });
@@ -64,5 +60,10 @@ app.get("/u/:id", (req, res) => {
 app.post("/urls/:id/delete", (req, res) => { // DELETE
   const id = req.params.id;
   delete urlDatabase[id];
+  res.redirect("/urls");
+});
+
+app.post("/urls/:id/edit", (req, res) => {
+  urlDatabase[req.params.id] = req.body.longURL;
   res.redirect("/urls");
 });
