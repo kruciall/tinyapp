@@ -2,11 +2,17 @@ const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
 const bcrypt = require("bcryptjs");
+const cookieSession = require('cookie-session');
+
+
 app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieSession({
+  name: 'tinyApp',
+  keys: ["secret keys", "secret keys 2"]
+}));
 
-const cookieParser = require('cookie-parser');
-app.use(cookieParser());
+
 
 const generateRandomString = function () {
   let result = '';
@@ -72,8 +78,8 @@ app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
 app.get("/urls", (req, res) => {
-  const urlsForGivenUser = (urlsForUser(urlDatabase, req.cookies.user_id));
-  const templateVars = { urls: urlsForGivenUser, user: users[req.cookies.user_id] };
+  const urlsForGivenUser = (urlsForUser(urlDatabase, req.session.user_id));
+  const templateVars = { urls: urlsForGivenUser, user: users[req.session.user_id] };
 
   
   if (!templateVars.user) {
@@ -84,7 +90,7 @@ app.get("/urls", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  const templateVars = { user: users[req.cookies.user_id] };
+  const templateVars = { user: users[req.session.user_id] };
   if (!templateVars.user) {
     res.redirect("/login");
     return;
@@ -93,8 +99,8 @@ app.get("/urls/new", (req, res) => {
 });
 
 app.get("/urls/:id", (req, res) => {
-  const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id].longURL, user: users[req.cookies.user_id] };
-  const urlsForGivenUser = (urlsForUser(urlDatabase, req.cookies.user_id));
+  const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id].longURL, user: users[req.session.user_id] };
+  const urlsForGivenUser = (urlsForUser(urlDatabase, req.session.user_id));
   if (urlsForGivenUser[req.params.id] === undefined) {
     res.status(403).send("You do not have any URLS");
     return;
@@ -107,13 +113,13 @@ app.get("/urls/:id", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {// MY URLS MAIN PAGE
-  const user = users[req.cookies.user_id];
+  const user = users[req.session.user_id];
   if (!user) {
     res.send("Can't shorten URL if you're not logged in fam");
     return;
   }
   const id = generateRandomString();
-  urlDatabase[id] = { longURL: req.body.longURL, userID: req.cookies.user_id };
+  urlDatabase[id] = { longURL: req.body.longURL, userID: req.session.user_id };
   res.redirect(`/urls/${id}`);
 });
 
@@ -128,7 +134,7 @@ app.get("/u/:id", (req, res) => {
 });
 
 app.post("/urls/:id/delete", (req, res) => { // DELETE
-  const urlsForGivenUser = (urlsForUser(urlDatabase, req.cookies.user_id));
+  const urlsForGivenUser = (urlsForUser(urlDatabase, req.session.user_id));
   if (urlsForGivenUser[req.params.id] === undefined) {
     res.status(403).send("You do not have any URLS");
     return;
@@ -139,7 +145,7 @@ app.post("/urls/:id/delete", (req, res) => { // DELETE
 });
 
 app.post("/urls/:id/edit", (req, res) => { // EDIT
-  const urlsForGivenUser = (urlsForUser(urlDatabase, req.cookies.user_id));
+  const urlsForGivenUser = (urlsForUser(urlDatabase, req.session.user_id));
   if (urlsForGivenUser[req.params.id] === undefined) {
     res.status(403).send("You do not have any URLS");
     return;
@@ -155,8 +161,8 @@ app.post("/logout", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
-  const user = users[req.cookies.user_id];
-  const templateVars = { user: users[req.cookies.user_id] };
+  const user = users[req.session.user_id];
+  const templateVars = { user: users[req.session.user_id] };
   console.log(user);
   if (user) {
     res.redirect("/urls");
@@ -184,13 +190,13 @@ app.post("/register", (req, res) => {
     return;
   }
   users[id] = { id, email, hashedPassword };
-  res.cookie("user_id", id);
+  req.session.user_id = id;
   res.redirect("/urls");
 });
 
 app.get("/login", (req, res) => {
-  const userID = req.cookies.user_id;
-  const templateVars = { user: users[req.cookies.user_id] };
+  const userID = req.session.user_id;
+  const templateVars = { user: users[req.session.user_id] };
   if (userID) {
     res.redirect("/urls");
     return;
@@ -217,6 +223,6 @@ app.post("/login", (req, res) => {
     res.status(400).send("Incorrect Password!");
     return;
   }
-  res.cookie("user_id", user.id);
+  req.session.user_id = id;
   res.redirect("/urls");
 });
