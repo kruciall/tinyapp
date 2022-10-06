@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
-
+const bcrypt = require("bcryptjs");
 app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: true }));
 
@@ -94,10 +94,6 @@ app.get("/urls/new", (req, res) => {
 
 app.get("/urls/:id", (req, res) => {
   const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id].longURL, user: users[req.cookies.user_id] };
-  console.log("-----------------------------");
-  console.log(urlDatabase[req.params.id].longURL);
-  console.log(req.params.id);
-
   const urlsForGivenUser = (urlsForUser(urlDatabase, req.cookies.user_id));
   if (urlsForGivenUser[req.params.id] === undefined) {
     res.status(403).send("You do not have any URLS");
@@ -118,7 +114,6 @@ app.post("/urls", (req, res) => {// MY URLS MAIN PAGE
   }
   const id = generateRandomString();
   urlDatabase[id] = { longURL: req.body.longURL, userID: req.cookies.user_id };
-  console.log("urlDatabase:  " , urlDatabase);
   res.redirect(`/urls/${id}`);
 });
 
@@ -175,6 +170,7 @@ app.post("/register", (req, res) => {
   const id = generateRandomString(6);
   const email = req.body.email;
   const password = req.body.password;
+  const hashedPassword = bcrypt.hashSync(password, 10);
   const findEmail = getUserByEmail(users, email);
 
   if (email === "" || password === "") {
@@ -187,8 +183,7 @@ app.post("/register", (req, res) => {
     res.send("Email has been already registered, please log in!");
     return;
   }
-  users[id] = { id, email, password };
-  console.log(users);
+  users[id] = { id, email, hashedPassword };
   res.cookie("user_id", id);
   res.redirect("/urls");
 });
@@ -207,6 +202,7 @@ app.get("/login", (req, res) => {
 app.post("/login", (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
+  const hashedPassword = bcrypt.hashSync(password,10);
   const user = getUserByEmail(users, email);
   console.log(user);
   if (email === "" || password === "") {
@@ -217,7 +213,7 @@ app.post("/login", (req, res) => {
     res.status(400).send("This email does not exist!");
     return;
   }
-  if (password !== user.password) {
+  if (!bcrypt.compareSync(password, hashedPassword)) {
     res.status(400).send("Incorrect Password!");
     return;
   }
