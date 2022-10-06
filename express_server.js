@@ -3,12 +3,12 @@ const app = express();
 const PORT = 8080; // default port 8080
 
 app.set("view engine", "ejs");
-app.use(express.urlencoded({ extended: true}));
+app.use(express.urlencoded({ extended: true }));
 
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
 
-const generateRandomString = function() {
+const generateRandomString = function () {
   let result = '';
   let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let charactersLength = characters.length;
@@ -17,6 +17,28 @@ const generateRandomString = function() {
       charactersLength));
   }
   return result;
+};
+
+const users = {
+  userRandomID: {
+    id: "userRandomID",
+    email: "vw@gmail.com",
+    password: "1312",
+  },
+  user2RandomID: {
+    id: "user2RandomID",
+    email: "user2@example.com",
+    password: "dishwasher-funk",
+  },
+};
+
+
+const getUserByEmail = function(database, email) {
+  for (let user in database) {
+    if (database[user].email === email) {
+      return database[user];
+    }
+  }
 };
 
 const urlDatabase = {
@@ -34,18 +56,17 @@ app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlDatabase, username: req.cookies["username"] };
-  console.log(templateVars.username);
+  const templateVars = { urls: urlDatabase, user: users[req.cookies.user_id] };
   res.render("urls_index", templateVars);
 });
 
-app.get("/urls/new", (req, res) => { // ADD
-  const templateVars = { username: req.cookies["username"] };
+app.get("/urls/new", (req, res) => {
+  const templateVars = { user: users[req.cookies.user_id] };
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:id", (req, res) => {
-  const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id], username: req.cookies["username"]};
+  const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id], user: users[req.cookies.user_id] };
   res.render("urls_show", templateVars);
 });
 
@@ -73,13 +94,68 @@ app.post("/urls/:id/edit", (req, res) => { // EDIT
   res.redirect("/urls");
 });
 
-app.post("/login", (req, res) => { // LOG IN
-  const username = req.body.username;
-  res.cookie("username", username);
+
+app.post("/logout", (req, res) => {
+  res.clearCookie("user_id");
   res.redirect("/urls");
 });
 
-app.post("/logout", (req, res) => {
-  res.clearCookie("username");
+app.get("/register", (req, res) => {
+  const templateVars = { user: users[req.cookies.user_id] };
+  res.render("urls_register", templateVars);
+});
+
+app.post("/register", (req, res) => {
+  // if email or password are empty strings send back a response with400 status code
+  //if someones tries to register with an email that is already in the users object, send back a respons with the 400 status code¸
+
+  const id = generateRandomString(6);
+  const email = req.body.email;
+  const password = req.body.password;
+  const findEmail = getUserByEmail(users, email);
+
+  if (email === "" || password === "") {
+    res.sendStatus(400);
+    res.send("Email or Password input is empty, please enter a valid email and password");
+    return;
+  }
+  if (findEmail) {
+    res.sendStatus(400);
+    res.send("Email has been already registered, please log in!");
+    return;
+  }
+  users[id] = { id, email, password };
+  console.log(users);
+  res.cookie("user_id", id);
+  res.redirect("/urls");
+});
+
+app.get("/login", (req, res) => {
+  const userID = users[req.cookies.user_id];
+  res.render("login");
+});
+
+
+app.post("/login", (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  const user = getUserByEmail(users, email);
+  console.log(user);
+  if (email === "" || password === "") {
+    res.sendStatus(403);
+    res.send("Email or Password input is empty, please enter a valid email and password");
+    return;
+  }
+  if (!user) {
+    res.sendStatus(403);
+    res.send("This email does not exist!");
+    return;
+  }
+  if (password !== user.password) {
+    res.sendStatus(403);
+    res.send("Incorrect Password!");
+    return;
+  }
+  res.cookie("user_id", user.id);
   res.redirect("/urls");
 });
