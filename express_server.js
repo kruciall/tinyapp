@@ -41,9 +41,25 @@ const getUserByEmail = function(database, email) {
   }
 };
 
+const urlsForUser = function(database, id) {
+  const match = {};
+  for (const url in database) {
+    if (database[url].userID === id) {
+      match[url] = database[url].longURL;
+    }
+  }
+  return match;
+};
+
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  b6UTxQ: {
+    longURL: "https://www.tsn.ca",
+    userID: "userRandomID",
+  },
+  i3BoGr: {
+    longURL: "https://www.google.ca",
+    userID: "userRandomID",
+  },
 };
 
 app.use(express.urlencoded({ extended: true }));
@@ -56,41 +72,84 @@ app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlDatabase, user: users[req.cookies.user_id] };
+  const urlsForGivenUser = (urlsForUser(urlDatabase, req.cookies.user_id));
+  const templateVars = { urls: urlsForGivenUser, user: users[req.cookies.user_id] };
+
+  
+  if (!templateVars.user) {
+    res.redirect("/login");
+    return;
+  }
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
   const templateVars = { user: users[req.cookies.user_id] };
+  if (!templateVars.user) {
+    res.redirect("/login");
+    return;
+  }
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:id", (req, res) => {
-  const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id], user: users[req.cookies.user_id] };
+  const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id].longURL, user: users[req.cookies.user_id] };
+  console.log("-----------------------------");
+  console.log(urlDatabase[req.params.id].longURL);
+  console.log(req.params.id);
+
+  const urlsForGivenUser = (urlsForUser(urlDatabase, req.cookies.user_id));
+  if (urlsForGivenUser[req.params.id] === undefined) {
+    res.status(403).send("You do not have any URLS");
+    return;
+  }
+  if (!templateVars.user) {
+    res.redirect("/login");
+    return;
+  }
   res.render("urls_show", templateVars);
 });
 
 app.post("/urls", (req, res) => {// MY URLS MAIN PAGE
+  const user = users[req.cookies.user_id];
+  if (!user) {
+    res.send("Can't shorten URL if you're not logged in fam");
+    return;
+  }
   const id = generateRandomString();
-  urlDatabase[id] = req.body.longURL;
-  console.log(urlDatabase);
+  urlDatabase[id] = { longURL: req.body.longURL, userID: req.cookies.user_id };
+  console.log("urlDatabase:  " , urlDatabase);
   res.redirect(`/urls/${id}`);
 });
 
 app.get("/u/:id", (req, res) => {
-  const longURL = urlDatabase[req.params.id];
+  const longURL = urlDatabase[req.params.id].longURL;
+  if (longURL === undefined) {
+    res.status(400).send("Short URL does not exist"); //CHAIN ALL THE OTHER ONES LIKE THIS
+    return;
+  }
   console.log(longURL);
   res.redirect(longURL);
 });
 
 app.post("/urls/:id/delete", (req, res) => { // DELETE
+  const urlsForGivenUser = (urlsForUser(urlDatabase, req.cookies.user_id));
+  if (urlsForGivenUser[req.params.id] === undefined) {
+    res.status(403).send("You do not have any URLS");
+    return;
+  }
   const id = req.params.id;
   delete urlDatabase[id];
   res.redirect("/urls");
 });
 
 app.post("/urls/:id/edit", (req, res) => { // EDIT
-  urlDatabase[req.params.id] = req.body.longURL;
+  const urlsForGivenUser = (urlsForUser(urlDatabase, req.cookies.user_id));
+  if (urlsForGivenUser[req.params.id] === undefined) {
+    res.status(403).send("You do not have any URLS");
+    return;
+  }
+  urlDatabase[req.params.id].longURL = req.body.longURL;
   res.redirect("/urls");
 });
 
@@ -101,16 +160,17 @@ app.post("/logout", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
+  const user = users[req.cookies.user_id];
   const templateVars = { user: users[req.cookies.user_id] };
-  if (templateVars) {
+  console.log(user);
+  if (user) {
     res.redirect("/urls");
+    return;
   }
   res.render("urls_register", templateVars);
 });
 
 app.post("/register", (req, res) => {
-  // if email or password are empty strings send back a response with400 status code
-  //if someones tries to register with an email that is already in the users object, send back a respons with the 400 status code¸
 
   const id = generateRandomString(6);
   const email = req.body.email;
@@ -134,11 +194,13 @@ app.post("/register", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
-  const userID = users[req.cookies.user_id];
+  const userID = req.cookies.user_id;
+  const templateVars = { user: users[req.cookies.user_id] };
   if (userID) {
     res.redirect("/urls");
+    return;
   }
-  res.render("login", userID);
+  res.render("login", templateVars);
 });
 
 
@@ -148,18 +210,15 @@ app.post("/login", (req, res) => {
   const user = getUserByEmail(users, email);
   console.log(user);
   if (email === "" || password === "") {
-    res.sendStatus(403);
-    res.send("Email or Password input is empty, please enter a valid email and password");
+    res.status(400).send("Email or Password input is empty, please enter a valid email and password");
     return;
   }
   if (!user) {
-    res.sendStatus(403);
-    res.send("This email does not exist!");
+    res.status(400).send("This email does not exist!");
     return;
   }
   if (password !== user.password) {
-    res.sendStatus(403);
-    res.send("Incorrect Password!");
+    res.status(400).send("Incorrect Password!");
     return;
   }
   res.cookie("user_id", user.id);
