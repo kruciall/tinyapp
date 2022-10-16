@@ -1,3 +1,27 @@
+const users = {
+  userRandomID: {
+    id: "userRandomID",
+    email: "vw@gmail.com",
+    password: "1312",
+  },
+  user2RandomID: {
+    id: "user2RandomID",
+    email: "user2@example.com",
+    password: "dishwasher-funk",
+  },
+};
+
+const urlDatabase = {
+  b6UTxQ: {
+    longURL: "https://www.tsn.ca",
+    userID: "userRandomID",
+  },
+  i3BoGr: {
+    longURL: "https://www.google.ca",
+    userID: "userRandomID",
+  },
+};
+
 const getUserByEmail = function(database, email) {
   for (const user in database) {
     if (database[user].email === email) {
@@ -27,4 +51,4 @@ const urlsForUser = function(database, id) {
   return match;
 };
 
-module.exports = { getUserByEmail, generateRandomString, urlsForUser };
+module.exports = { getUserByEmail, generateRandomString, urlsForUser , users, urlDatabase};
